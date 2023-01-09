@@ -12,7 +12,7 @@ let db = new sqlite3.Database('database.db', sqlite3.OPEN_READWRITE | sqlite3.OP
 });
 
 app.get('/', (req, res) => {
-    res.send('Hello inventory!');
+    
 });
 
 app.listen(port, () => {
