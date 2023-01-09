@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node ./index.js"
+    "start": "node ./index.js",
+    "gen-ssl": "openssl req -newkey rsa:2048 -new -nodes -keyout key.pem -out csr.pem",
+    "gen-ssl-cert": "openssl x509 -req -sha256 -days 365 -in csr.pem -signkey key.pem -out cert.pem"
   },
   "author": "",
   "license": "ISC",
