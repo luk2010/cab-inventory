@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Cab Inventory Items</title>
+
+        <link rel="stylesheet" type="text/css" href="/static/css/styles.css" />
+
+        <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+        <script src="/static/js/Alert.js"></script>
+    </head>
+    <body>
+        <main>
+            <h1>Cab Inventory Items</h1>
+            <p>
+                <button class="big-button" onclick="scanBarCode()">Scan Item</button>
+            </p>
+            <div id="scan-zone" style="display: none;">
+                <video id="scan-video"></video>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>id</th>
+                        <th>Barcode</th>
+                        <th>Name</th>
+                        <th>Number Of Items</th>
+                        <th>Required Minimum Number</th>
+                        <th>Should Refill</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% rows.forEach(function(row){ %>
+                        <tr>
+                            <th><%= row.id %></th>
+                            <th><%= row.barcode %></th>
+                            <th><%= row.name %></th>
+                            <th><%= row.numberOfItems %></th>
+                            <th><%= row.minimumNumberOfItems %></th>
+                            <th><%  row.numberOfItems < row.minimumNumberOfItems ? "true" : "false"; %></th>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </main>
+
+        <script>
+            let scannedBarCodes = new Map();
+            const scanDepthLimit = 20; 
+            let isScanning = false;
+
+            async function scanBarCode() {
+                if (isScanning) {
+                    Quagga.stop();
+                    let container = document.getElementById('scan-zone');
+                    container.style.display = 'none';
+                    isScanning = false;
+                    return;
+                }
+
+                let video = document.getElementById('scan-video');
+                let container = document.getElementById('scan-zone');
+                container.style.display = 'block';
+
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: video,
+                    },
+                    decoder: {
+                        readers: ["ean_reader"]
+                    }
+                    }, function(err) {
+                        if (err) {
+                            console.log(err);
+                            return;
+                        }
+                        console.log("Initialization finished. Ready to start");
+                        Quagga.start();
+
+                        isScanning = true;
+                });
+
+                // Set up the camera
+                navigator.mediaDevices.getUserMedia({ video: { 
+                    facingMode: { ideal: 'environment' }
+                } }).then(function(stream) {
+                    video.srcObject = stream;
+                    video.play();
+                });
+
+                // Listen for scanned codes
+                Quagga.onDetected(async function(barcode) {
+                    console.log('Barcode:', barcode.codeResult.code);
+                    const code = barcode.codeResult.code;
+                    
+                    if (!scannedBarCodes.has(code)) {
+                        scannedBarCodes.set(code, 1);
+                    }
+                    else {
+                        scannedBarCodes.set(code, scannedBarCodes.get(code) + 1);
+                    }
+
+                    if (scannedBarCodes.get(code) == 5) {
+                        fetch({
+                            url: '/add-item',
+                            body: JSON.stringify({ barcode: code })
+                        }).then(async (response) => {
+                            if (response.ok) {
+                                let alert = new Alert('Item added to database.');
+                                document.body.append(alert.element);
+                            }
+                        });
+                    }
+                });
+            }
+        </script>
+    </body>
+</html>
